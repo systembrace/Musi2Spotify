@@ -31,7 +31,7 @@ def spotify_client(token):
     try:
         return spotipy.Spotify(auth=token, auth_manager=SpotifyClientCredentials(secrets["APP_CLIENT_ID"], secrets["APP_CLIENT_SECRET"]), requests_timeout=10, retries=5)
     except Exception as e:
-        print(e)
+        print("EXCEPTION:"+e)
         return None
 
 def refresh_token():
@@ -46,6 +46,7 @@ def scrape_playlist(link):
     playlist_name=""
     total_songs=0
     scraped_songs=0
+    load_error="Webscraping failed. Please try again"
 
     r=htmlsession.get(link)
     try:
@@ -53,7 +54,7 @@ def scrape_playlist(link):
     except Exception as e:
         load_error="Failed to connect to HTMLSession"
         print(e)
-        requests.post("https://localhost:5000/refresh_htmlsession")
+        requests.post("https://www.systembrace.com/refresh_htmlsession")
         currently_loading=False
         return songs, playlist_name, total_songs, scraped_songs, currently_loading, load_error
     r=r.html.html
@@ -66,12 +67,14 @@ def scrape_playlist(link):
     while r.find('href="')!=-1:
         r=r[r.find('href="')+6:]
         url=r[:r.find('"')]
+        thumb=r[r.find("url('")+5:]
+        thumb=thumb[:thumb.find("'")]
         title=r[r.find("video_title")+13:]
         title=title[:title.find("</div>")]
         artist=r[r.find("video_artist")+14:]
         artist=artist[:artist.find("</div>")]
         if title[0]!=">":
-            songs.append({"artist":artist,"title":title,"url":url})
+            songs.append({"artist":artist,"title":title,"url":url,"thumb":thumb})
             scraped_songs+=1
             #print(artist)
             #print(title)
@@ -118,15 +121,19 @@ def song_search(song_name,spotify):
                 return song
     return None
 
-def add_match(matches,musi,sp,index=0,remove=False):
-    db_connection=connect_to_db()
+def add_match(matches,musi,sp,index=0,remove=False,user_token=""):
+    if not "album" in sp.keys():
+        spotify=spotify_client(user_token)
+        sp=spotify.track("open.spotify.com/track/"+sp["id"])
     res={
         "yt_title":truncate(musi["title"],27),
         "yt_author":truncate(musi["artist"]),
         "yt_url":musi["url"],
+        "yt_thumb":musi["thumb"],
         "sp_title":truncate(sp["name"],27),
         "sp_artist":truncate(sp["artists"][0]["name"]),
-        "sp_id":sp["id"]
+        "sp_id":sp["id"],
+        "sp_thumb":sp["album"]["images"][0]["url"]
     }
     for match in matches:
         if match["yt_url"]==musi["url"]:
@@ -134,11 +141,12 @@ def add_match(matches,musi,sp,index=0,remove=False):
             break
     if not remove:
         matches.insert(index,res)
+    return sp
 
 
 def refresh_thread_data(connection, user_token):
     data=get_playlist_data(connection, user_token)
-    return (data[1], bool(data[2]), data[3], json.loads(data[4]), json.loads(data[5]), json.loads(data[6]), json.loads(data[7]), data[8], data[9], data[10])
+    return (data[1], bool(data[3]), data[4], json.loads(data[5]), json.loads(data[6]), json.loads(data[7]), json.loads(data[8]), data[9], data[10], data[11])
 
 def convert_playlist(link, user_token, refresh_token):
     load_error="Unknown Error"
@@ -156,6 +164,7 @@ def convert_playlist(link, user_token, refresh_token):
 
     db_connection=connect_to_db()
 
+    link=link.replace(" ","")
     if not link.startswith("https://feelthemusi.com/playlist/") and not link.startswith("feelthemusi.com/playlist/"):
         load_error="Not a valid musi playlist. Copy the link found in the musi app.\nExample: https://feelthemusi.com/playlist/ABCDEF"
         currently_loading=False
@@ -170,7 +179,7 @@ def convert_playlist(link, user_token, refresh_token):
         #    print("exited thread early")
         #    return
     if attempts>=20 and len(youtube_songs)==0:
-        load_error="Webscraping failed. Please try again"
+        #load_error="Webscraping failed. Please try again"
         currently_loading=False
         update_playlist_conversion(db_connection, user_token, load_error, currently_loading)
         return
@@ -196,15 +205,18 @@ def convert_playlist(link, user_token, refresh_token):
         if match is not None and len(match)==1:
             if match[0][2]!="":
                 song=json.loads(match[0][3])
+                if not "album" in song.keys():
+                    song=spotify.track("open.spotify.com/track/"+song["id"])
                 matched_songs+=1
-                add_match(matches, musi_song,song)
+                add_match(matches, musi_song,song, 0, False, user_token)
                 spotify_songs.append(song)
             else:
                 matched_songs+=1
                 res={
                     'title': truncate(musi_song['title'],27),
                     'url': musi_song['url'],
-                    'artist': truncate(musi_song['artist'])
+                    'artist': truncate(musi_song['artist']),
+                    'thumb': musi_song['thumb']
                 }
                 not_found.insert(0,res)
                 spotify_songs.append({})
@@ -243,7 +255,7 @@ def convert_playlist(link, user_token, refresh_token):
             if song is not None:
                 spotify_songs.append(song)
                 matched_songs+=1
-                add_match(matches,musi_song,song)
+                song=add_match(matches,musi_song,song, 0, False, user_token)
                 add_song_to_registry(db_connection,musi_song,song)
                 #print("found "+song['name']+" by "+song['artists'][0]['name'])
                 continue
@@ -256,14 +268,15 @@ def convert_playlist(link, user_token, refresh_token):
         if song is not None:
             spotify_songs.append(song)
             matched_songs+=1
-            add_match(matches,musi_song,song)
+            song=add_match(matches,musi_song,song, 0, False, user_token)
             add_song_to_registry(db_connection,musi_song,song)
             #print("found "+song['name']+" by "+song['artists'][0]['name']+" without artist")
         else:
             res={
                 'title': truncate(musi_song['title'],27),
                 'url': musi_song['url'],
-                'artist': truncate(musi_song['artist'])
+                'artist': truncate(musi_song['artist']),
+                'thumb': musi_song['thumb']
             }
             not_found.insert(0,res)
             spotify_songs.append({})
@@ -283,6 +296,7 @@ def convert_playlist(link, user_token, refresh_token):
 
     currently_loading=False
     update_playlist_conversion(db_connection, user_token, load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs)
+    db_connection.disconnect()
 
 @app.route('/', methods=["GET","POST"])
 def homepage():
@@ -299,7 +313,9 @@ def homepage():
                 os.remove(".cache")
             return render_template("login_page.html")
         print("logged in")
-        delete_playlist_data(connect_to_db(),session["user_token"])
+        db_connection=connect_to_db()
+        delete_playlist_data(db_connection,session["user_token"])
+        db_connection.disconnect()
         return render_template("index.html")
     else:
         if ".cache" in os.listdir():
@@ -313,15 +329,19 @@ def login():
 
 @app.route("/error", methods=["GET","POST"])
 def error():
-    load_error = refresh_thread_data(connect_to_db(), session["user_token"])[0]
+    db_connection=connect_to_db()
+    load_error = refresh_thread_data(db_connection(), session["user_token"])[0]
+    db_connection.disconnect()
     return render_template("error.html", ERROR=load_error)
 
 @app.route('/link', methods = ["GET","POST"])
 def link():
     if request.method == 'POST':
         refresh_token()
-        print(session["user_token"])
-        update_playlist_conversion(connect_to_db(),session["user_token"],"Unknown error",True)
+        #print(session["user_token"])
+        db_connection=connect_to_db()
+        update_playlist_conversion(db_connection,session["user_token"],"Unknown error",True)
+        db_connection.disconnect()
         t=Thread(target=convert_playlist,args=(request.form["link"],session["user_token"],session["refresh_token"]))
         t.start()
         return redirect("/load_playlist", code=307)
@@ -344,7 +364,9 @@ def refresh_htmlsession():
 
 @app.route("/get_live_info",methods=["GET","POST"])
 def get_live_info():
-    load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs = refresh_thread_data(connect_to_db(), session["user_token"])
+    db_connection=connect_to_db()
+    load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs = refresh_thread_data(db_connection, session["user_token"])
+    db_connection.disconnect()
     if request.method == 'GET':
         return {"name":playlist_name,"songs":total_songs,"matched":matched_songs,"scraped":scraped_songs,"loading":currently_loading,"matches":matches,"not_found":not_found}
     return redirect("/")
@@ -355,7 +377,9 @@ def get_song():
         body=json.loads(request.data)
         url=body["url"]
         res={"yt_title":"Not found"}
-        youtube_songs=refresh_thread_data(connect_to_db(), session["user_token"])[3]
+        db_connection=connect_to_db()
+        youtube_songs=refresh_thread_data(db_connection, session["user_token"])[3]
+        db_connection.disconnect()
         for song in youtube_songs:
             if song["url"]==url:
                 res["yt_title"]=song["title"]
@@ -392,38 +416,48 @@ def update_match():
                 index=i
                 break
         if index==-1:
+            db_connection.disconnect()
             return {"message":"Video not found in original playlist. Try again."}
         try:
             sp_song=spotify.track(sp_url)
         except:
+            db_connection.disconnect()
             return {"message":"Error searching for Spotify track.\nAre you sure this link is valid?"}
         try:
             if not remove:
-                add_song_to_registry(connect_to_db(),yt_song,sp_song,1)
+                add_song_to_registry(db_connection,yt_song,sp_song,1)
             else:
-                add_song_to_registry(connect_to_db(),yt_song,{},1)
+                add_song_to_registry(db_connection,yt_song,{},1)
         except:
+            db_connection.disconnect()
             return {"message":"Error adding match to registry. Please try again."}
         nf_song={
             'title': truncate(yt_song['title'],27),
             'url': yt_song['url'],
-            'artist': truncate(yt_song['artist'])
+            'artist': truncate(yt_song['artist']),
+            'thumb': yt_song['thumb']
         }
         if not remove:
-            if nf_song in not_found:
-                not_found.remove(nf_song)
-            spotify_songs.pop(index)
-            spotify_songs.insert(index,sp_song)
-            add_match(matches, yt_song,sp_song,index)
+            in_not_found=False
+            for nf in not_found:
+                if nf["url"]==nf_song["url"]:
+                    not_found.remove(nf)
+                    in_not_found=True
+                    break
+            if not in_not_found:
+                spotify_songs.pop(len(spotify_songs)-index-1)
+            spotify_songs.insert(len(spotify_songs)-index,sp_song)
+            add_match(matches, yt_song,sp_song,index-len(not_found), False, session["user_token"])
         else:
             not_found.insert(0,nf_song)
             for song in spotify_songs:
                 if song!={} and song["id"]==sp_url.replace("open.spotify.com/track/","").replace("https://","").replace("http://",""):
                     spotify_songs.remove(song)
-                    spotify_songs.insert(index,{})
+                    spotify_songs.insert(len(spotify_songs)-index,{})
                     break
-            add_match(matches, yt_song,sp_song,index,True)
+            add_match(matches, yt_song,sp_song,index,True, session["user_token"])
         update_playlist_conversion(db_connection, session["user_token"], load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs)
+        db_connection.disconnect()
         return {"message":"Success"}
     return redirect("/")
 
@@ -437,8 +471,10 @@ def create_playlist():
         existing_id=json.loads(request.data)["url"].replace("open.spotify.com/playlist/","").replace("https://","").replace("http://","")
         tracks=[]
         count=0
-        load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs = refresh_thread_data(connect_to_db(), session["user_token"])
-        for song in spotify_songs:
+        db_connection=connect_to_db()
+        load_error, currently_loading, playlist_name, youtube_songs, spotify_songs, matches, not_found, total_songs, scraped_songs, matched_songs = refresh_thread_data(db_connection, session["user_token"])
+        db_connection.disconnect()
+        for song in reversed(spotify_songs):
             if song!={}:
                 if count%99==0:
                     tracks.append([])

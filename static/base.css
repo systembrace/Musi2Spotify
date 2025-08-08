@@ -22,7 +22,6 @@ p {
 table {
 	color: black;
 	background: white;
-	margin: auto;
 	width: 100%;
 	border: 1px solid;
 	border-collapse: collapse;
@@ -41,6 +40,8 @@ thead {
 td {
 	padding-left: 2pt;
 	padding-right: 2pt;
+	text-align: left;
+	vertical-align: middle;
 }
 
 input {
@@ -124,6 +125,24 @@ button {
 	max-height: 200px;
 }
 
+.tablecell {
+    background-size: 50pt 38pt;
+    background-repeat: no-repeat;
+    padding-left: 55pt;
+    min-height: 38pt;
+    margin: 0;
+    background-position-y: center;
+}
+
+.sptablecell {
+    background-size: 38pt 38pt;
+    background-repeat: no-repeat;
+    padding-left: 43pt;
+    min-height: 38pt;
+    margin: 0;
+    background-position-y: center;
+}
+
 .textbox {
 	color: white;
 	background: cornflowerblue;
@@ -151,6 +170,59 @@ button {
 		width: 100pt;
 	}
 	.textbox {
-		max-width: 90%;
+		max-width: 100%;
 	}
+	.flex-container {
+	    flex-direction: column;
+    }
+    .tableframe {
+    	max-width: 60%;
+    	max-height: 300px;
+    	margin: auto;
+    }
+    .box {
+    	padding: 5pt;
+    }
+    button {
+    	h1, h2, h3 {
+    		margin: 0pt;
+    	}
+    }
+    .header {
+    	flex-direction: column;
+    	border-width: 2pt;
+    	font-size: 32%;
+    	h1 {
+    	    font-size: 16pt;
+    	}
+    	div {
+    	    display: flex;
+    	    flex-direction: row;
+    	    * {
+    	        margin: 2pt;
+    	    }
+    	}
+    	text-wrap: nowrap;
+    	* {
+    		margin: auto;
+    	}
+    }
+    td {
+        font-size: 6pt;
+        text-overflow: ellipsis;
+        max-width: 80pt;
+    }
+    .tablecell {
+        background-size: 40pt 30pt;
+        padding-left: 45pt;
+    }
+    .sptablecell{
+        background-size: 30pt 30pt;
+        padding-left: 35pt;
+        font-size: 6pt;
+    }
+    .tableframe {
+    	min-width:95%;
+    	overflow-x: hidden;
+    }
 }

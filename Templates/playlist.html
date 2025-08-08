@@ -16,19 +16,19 @@
 		<h3><a href="https://ko-fi.com/systembrace/">Support me on Ko-Fi</a></h3>
 		</div>
 	</div>
-	
+
 	<div class="body">
-	
+
 	<div class="textbox">
     <h2 id="playlistName">Musi playlist name: </h2>
 	<hr>
 	<p id="scraped"><br></p>
 	<p id="matched"><br></p>
 	<a href="/">
-		<button type="button">Cancel conversion</button>
+		<button type="button">End conversion</button>
 	</a>
 	</div>
-	
+
 	<div id="matchUpdater" style="display: none; width: 70%; margin: auto;">
 	<div class="flex-container">
 	<div class="textbox">
@@ -46,6 +46,10 @@
 	</form>
 	<p class="note">Note: the playlist you are replacing will be unrecoverable if you pick the wrong one. Please double check this is the correct link.</p>
 	</p>
+	<hr>
+	<a href="/">
+		<button type="button">Convert another playlist</button>
+	</a>
 	</div>
 	<div class="textbox">
 	<h2>Manually match YouTube video to Spotify track (optional):</h2>
@@ -58,7 +62,7 @@
 	<form onsubmit="return update_match()">
 		<input type="text" id="matchedSong" name="url" value="">
 		<input type="submit" value="Update">
-	</form> 
+	</form>
 	<div id="removeButton" style="display: none;">
 	<p>If the song isn't on spotify:
 	<button type="button" onclick="remove_match()">Remove match</button>
@@ -70,7 +74,7 @@
 	</div>
 	</div>
 	</div>
-	
+
 	<div class="flex-container">
 	 <div id="notFoundContainer" class="box" style="display: none;">
 	  <h2>Songs not found on Spotify:  </h2>
@@ -105,7 +109,7 @@
 	<div class="textbox">
 		<p>
 			<h2>Thanks for using this site!</h2>
-			If you'd like to support me or show thanks, 
+			If you'd like to support me or show thanks,
 			you can send me a tip on Ko-Fi linked <a href="https://ko-fi.com/systembrace/">here.</a>
 			This is by no means necessary, but greatly appreciated!
 			<hr>
@@ -114,9 +118,13 @@
 			Mostly, I'm making a game that you might find interesting. Every follow or like helps!
 			<hr>
 			Thanks again!
+			<hr>
+		</p>
+		<p class="note">
+		    You can reach me at contact.systembrace@gmail.com for support or any bugs you encounter!
 		</p>
 	</div>
-	
+
 	</div>
 </body>
 </html>

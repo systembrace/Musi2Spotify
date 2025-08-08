@@ -11,7 +11,7 @@ function fetchLiveData() {
 			document.getElementById("scraped").innerHTML="Musi playlist loaded"
 			document.getElementById("matched").innerHTML="Searched for "+data.matched+"/"+data.songs+" songs on Spotify"
 		}
-		
+
 		let notFoundTableBody = document.getElementById('notFoundTableBody');
 		notFoundTableBody.innerHTML = '';
 		if (data.not_found.length>0){
@@ -20,18 +20,22 @@ function fetchLiveData() {
 		else{
 			document.getElementById("notFoundContainer").style.display="none";
 		}
-		
+
 		let nf_count=0;
 		data.not_found.forEach(song => {
 			nf_count+=1;
 			let row = document.createElement('tr');
 
 			let Cell = document.createElement('td');
+			let CellContainer = document.createElement('p');
+			CellContainer.setAttribute("class", "tablecell");
+			CellContainer.setAttribute("style", "background-image: url('"+song["thumb"]+"');");
 			let Link = document.createElement("a");
 			Link.setAttribute("href", song["url"])
 			let LinkText = document.createTextNode(song["title"]+" by "+song["artist"]);
 			Link.appendChild(LinkText);
-			Cell.appendChild(Link);
+			CellContainer.appendChild(Link);
+			Cell.appendChild(CellContainer);
 
 			let ButtonCell = document.createElement('td');
 			let Button = document.createElement("button");
@@ -41,35 +45,43 @@ function fetchLiveData() {
 			let ButtonText = document.createTextNode(nf_count);
 			Button.appendChild(ButtonText);
 			ButtonCell.appendChild(Button);
-	
+
 			row.appendChild(ButtonCell);
 			row.appendChild(Cell);
 
 			notFoundTableBody.appendChild(row);
 		});
-			
+
 		let foundTableBody = document.getElementById('foundTableBody');
 		foundTableBody.innerHTML = '';
-	
+
 		let m_count=0;
 		data.matches.forEach(match => {
 			m_count+=1;
 			let row = document.createElement('tr');
 
 			let ytCell = document.createElement('td');
+			let ytCellContainer = document.createElement('p');
+			ytCellContainer.setAttribute("class", "tablecell");
+			ytCellContainer.setAttribute("style", "background-image: url('"+match["yt_thumb"]+"');");
 			let ytLink = document.createElement("a");
 			ytLink.setAttribute("href", match["yt_url"])
 			let ytLinkText = document.createTextNode(match["yt_title"]+" by "+match["yt_author"]);
 			ytLink.appendChild(ytLinkText);
-			ytCell.appendChild(ytLink);
-		
+			ytCellContainer.appendChild(ytLink);
+			ytCell.appendChild(ytCellContainer);
+
 			let spCell = document.createElement('td');
+			let spCellContainer = document.createElement('p');
+			spCellContainer.setAttribute("class", "sptablecell");
+			spCellContainer.setAttribute("style", "background-image: url('"+match["sp_thumb"]+"');");
 			let spLink = document.createElement("a");
 			spLink.setAttribute("href", "http://open.spotify.com/track/"+match["sp_id"])
 			let spLinkText = document.createTextNode(match["sp_title"]+" by "+match["sp_artist"]);
 			spLink.appendChild(spLinkText);
-			spCell.appendChild(spLink);
-			
+			spCellContainer.appendChild(spLink);
+			spCell.appendChild(spCellContainer);
+
 			let ButtonCell = document.createElement('td');
 			let Button = document.createElement("button");
 			Button.addEventListener("click", selectSong, false);
@@ -85,9 +97,9 @@ function fetchLiveData() {
 
 			foundTableBody.appendChild(row);
 		});
-		
+
 		loading=data.loading;
-		
+
 		if (data.songs!=0 && data.matched==data.songs){
 			document.getElementById("matchUpdater").style.display="block";
 			document.getElementById("scraped").innerHTML=""

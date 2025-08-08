@@ -1,6 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
 import json
+from time import time
 
 def connect_to_db():
     with open("secrets.env","r") as f:
@@ -8,15 +9,15 @@ def connect_to_db():
     connection=None
     try:
         connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
+            host="systembrace.mysql.pythonanywhere-services.com",
+            user="systembrace",
             password=secrets["SQL_PW"],
-            database="musi2spotify"
+            database="systembrace$link_registry"
         )
     except Error as e:
         print(f"{e}")
     return connection
-    
+
 def execute(connection, query):
     try:
         connection.cursor().execute(query)
@@ -51,10 +52,11 @@ def prep_sp_song(sp):
         "name":prep_string(sp["name"]),
         "uri":sp["uri"],
         "id":sp["id"],
+        "album":{"images":[{"url":sp["album"]["images"][0]["url"]}]},
         "artists":[{"name":prep_string(sp["artists"][0]["name"])}]
     }
     return res
-    
+
 def prep_song(song):
     res={}
     for key in song.keys():
@@ -70,11 +72,12 @@ def add_song_to_registry(connection, musi,sp,verified=0):
         execute(connection,query)
     else:
         print(f"Failed to add song {sp["name"]}")
-        
+
 def update_playlist_conversion(connection, token, load_error, currently_loading, playlist_name="", youtube_songs=[], spotify_songs=[], matches=[], not_found=[], total_songs=0, scraped_songs=0, matched_songs=0):
     if connection is None:
         print(f"Failed to add playlist data for {playlist_name}")
         return
+    execute(connection, f"DELETE FROM playlist_data WHERE time<{int(time())-3600}")
     yt_songs=[]
     sp_songs=[]
     match_list=[]
@@ -87,7 +90,7 @@ def update_playlist_conversion(connection, token, load_error, currently_loading,
         match_list.append(prep_song(song))
     for song in not_found:
         nf_list.append(prep_song(song))
-    query=f"REPLACE INTO playlist_data VALUES ('{token}','{load_error}',{currently_loading},'{playlist_name}','{json.dumps(yt_songs)}','{json.dumps(sp_songs)}','{json.dumps(match_list)}','{json.dumps(nf_list)}',{total_songs},{scraped_songs},{matched_songs});"
+    query=f"REPLACE INTO playlist_data VALUES ('{token}',{int(time())},'{load_error}',{currently_loading},'{playlist_name}','{json.dumps(yt_songs)}','{json.dumps(sp_songs)}','{json.dumps(match_list)}','{json.dumps(nf_list)}',{total_songs},{scraped_songs},{matched_songs});"
     execute(connection,query)
 
 def get_playlist_data(connection, token):
@@ -107,7 +110,7 @@ def playlist_is_loading(connection,token):
     if len(data)==0:
         return True
     return bool(data[0][2])
-    
+
 def delete_playlist_data(connection,token):
     if connection is None:
         print(f"Failed to delete playlist data for {token}")
